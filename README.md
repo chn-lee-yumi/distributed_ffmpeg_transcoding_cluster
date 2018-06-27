@@ -9,6 +9,14 @@
 - 控制节点和计算节点通信暂时使用SSH。
 - 思路: 控制节点收到请求，将文件传到共享存储，计算视频总帧数，然后发送命令给计算节点，不同节点按照各自权重(手动设置，可加性能测试功能)处理一定的连续帧，输出到共享存储，全部节点转码完毕后交由存储节点进行合并，并清理共享临时文件，最后控制节点返回转码后的视频链接。
 
+## 已知问题（待解决）
+
+- **ffmpeg还在运行但已经执行了后面的touch语句**，导致控制代码认为节点已经转码完成。这个我还没想明白为什么。代码如下：
+```shell
+# ssh ${compute_node[$i]} -p ${compute_node_ssh_port[$i]} "ffmpeg -i $upload_path/$filename -ss $part_start -to $part_end $ffmpeg_output_parameter $tmp_path/${filename}_$i.mp4 -loglevel error; touch $tmp_path/${filename}_$i.txt"
+ssh 10.1.1.172 -p 22 ffmpeg -i /srv/distributed_ffmpeg_transcoding_shared_files/upload/1530104749 -ss 0 -to 8.76 -c:v mpeg4 -b:v 1M /srv/distributed_ffmpeg_transcoding_shared_files/tmp/1530104749_0.mp4 -loglevel error && touch /srv/distributed_ffmpeg_transcoding_shared_files/tmp/1530104749_0.txt
+```
+
 ## 安装与配置
 
 - 测试组网：三台公网VPS cn.gcc.ac.cn, hk.gcc.ac.cn, us.gcc.ac.cn
@@ -85,18 +93,19 @@ mount hk.gcc.ac.cn:/srv/distributed_ffmpeg_transcoding_shared_files/upload /srv/
 ```
 Usage：dffmpeg.sh [input_file] [ffmpeg_output_parameter]
 Usage：dffmpeg.sh test.mp4
-Usage：dffmpeg.sh test.mp4 -c mpeg4
-Usage：dffmpeg.sh test.mp4 -c mpeg4 -b:v 1M
+Usage：dffmpeg.sh test.mp4 -c:v mpeg4
+Usage：dffmpeg.sh test.mp4 -c:v mpeg4 -b:v 1M
 ```
 
 ## 测试
 
-- 在控制节点运行：`dffmpeg.sh test.mp4 -c mpeg4 -b:v 1M`
-- 其中test.mp4为需要转码的文件，mpeg4是编码格式，1M是视频码率。
+- 在控制节点运行：`dffmpeg.sh test_video.mp4 -c:v mpeg4 -b:v 1M`
+- 其中test_video.mp4为需要转码的文件，mpeg4是编码格式，1M是视频码率。
 - 最后会输出一个mp4文件在download目录。
 - 由于我的三个服务器分布在公网不同地域，瓶颈在NFS的读写速度，所以最终转码速度会比较慢。如果服务器先缓存了要转码的文件，那么最终转码速度是比一台服务器转码快的。
 - 代码运行效果如下图
 ![代码运行效果图](https://img-blog.csdn.net/2018062412264794?watermark/2/text/aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L2ltZHlm/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70)
+- 转码后的视频可以看dffmpeg_result.mp4。（这个是我用树莓派集群转的）
 
 ## 结束语
 
@@ -109,6 +118,7 @@ Usage：dffmpeg.sh test.mp4 -c mpeg4 -b:v 1M
  - v1.1：修复问题：最后的视频长度会比原来长。原因在于`-ss`参数的位置，详见代码注释。
  - v1.2：新增内容：支持FFmpeg输出参数。输出彩色详细信息。
 
- ## 我的博客相关文章
+## 我的博客相关文章
 
  - [分布式FFMPEG转码集群](https://blog.csdn.net/imdyf/article/details/80621009)
+ - [树莓派集群（分布式FFMPEG转码）](https://blog.csdn.net/imdyf/article/details/80828218)

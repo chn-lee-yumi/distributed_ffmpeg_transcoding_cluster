@@ -1,12 +1,11 @@
 #!/bin/bash
 
-# 分布式FFMPEG转码 v1.2
+# 分布式FFMPEG转码 v1.3
 # 支持任意格式视频转成MP4
 # Usage：dffmpeg.sh [input_file] [ffmpeg_output_parameter]
 # Usage：dffmpeg.sh test.mp4
-# Usage：dffmpeg.sh test.mp4 -c mpeg4
-# Usage：dffmpeg.sh test.mp4 -c mpeg4 -b:v 1M
-# TODO：?
+# Usage：dffmpeg.sh test.mp4 -c:v mpeg4 -b:v 1M
+# TODO：修复奇怪的bug：ffmpeg还在运行但已经执行了后面的touch语句
 
 ###配置项
 storage_node="hk.gcc.ac.cn"
@@ -15,6 +14,7 @@ compute_node=("us.gcc.ac.cn" "hk.gcc.ac.cn" "cn.gcc.ac.cn") # 计算节点
 compute_node_ssh_port=(10022 22 22) # 计算节点的ssh端口
 compute_node_weight=(10 50 15) # 计算节点的权重
 nfs_path=/srv/distributed_ffmpeg_transcoding_shared_files #共享目录
+sync_wait_time=0 # 为解决树莓派集群上出现的奇怪BUG（ffmpeg还在运行但已经执行了后面的touch语句）而设置的参数。根据不同权重的不同，需要设置不同的值，需要实测。合理设置权重可以减少该值。该值大小可能为30。
 ###配置项结束
 
 upload_path=$nfs_path/upload
@@ -100,9 +100,10 @@ do
     ssh ${compute_node[$i]} -p ${compute_node_ssh_port[$i]} "ffmpeg -i $upload_path/$filename -ss $part_start -to $part_end $ffmpeg_output_parameter $tmp_path/${filename}_$i.mp4 -loglevel error; touch $tmp_path/${filename}_$i.txt" & # -ss在后面，速度会变慢，但是不会造成视频片段重复
     part_start=$part_end
     echo "file '${filename}_$i.mp4'" >> $tmp_path/${filename}_filelist.txt
-done 
+done
 
 # 不断检查任务是否完成
+sleep 1
 display [Info] Checking if the tasks are completed.
 while :
 do
@@ -126,6 +127,7 @@ done
 display !
 
 # 进行视频拼接
+sleep $sync_wait_time
 display [Info] Tasks all completed! Start to join them.
 ssh $storage_node -p $storage_node_ssh_port "ffmpeg -f concat -i $tmp_path/${filename}_filelist.txt -c copy $download_path/$filename.mp4 -loglevel error"
 
@@ -134,7 +136,7 @@ display [Info] Clean temporary files.
 rm -r $tmp_path/${filename}*
 rm $upload_path/${filename}
 
-display [Success] Mission complete! Output path: [$download_path/$filename.mp4]
+display [Finish] Mission complete! Output path: [$download_path/$filename.mp4]
 
 
 # ffmpeg常用命令。参考 https://www.cnblogs.com/frost-yen/p/5848781.html
