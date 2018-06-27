@@ -1,8 +1,7 @@
 # 分布式FFMPEG转码集群
 
-[TOC]
+## 代码思路
 
-## 思路
 - 分布式转码集群
 - 暂时的目标: FFMPEG实现任意格式转MP4。
 - 存储暂时采用单节点的共享存储(NFS)，可尝试分布式存储。
@@ -18,7 +17,9 @@
 - 计算节点：cn.gcc.ac.cn,hk.gcc.ac.cn,us.gcc.ac.cn
 
 ### 存储节点
+
 - 存储节点系统是Debian
+
 ```shell
 # 安装NFS
 apt-get install nfs-kernel-server
@@ -29,6 +30,7 @@ mkdir /srv/distributed_ffmpeg_transcoding_shared_files/tmp
 mkdir /srv/distributed_ffmpeg_transcoding_shared_files/download
 chmod -R 777 /srv/distributed_ffmpeg_transcoding_shared_files
 ```
+
 - 修改文件`/etc/exports`，将目录共享出去
 - upload目录，控制节点有读写权限，计算节点有只读权限
 - tmp，计算节点有读写权限
@@ -48,6 +50,7 @@ chmod -R 777 /srv/distributed_ffmpeg_transcoding_shared_files
 /srv/distributed_ffmpeg_transcoding_shared_files/upload cn.gcc.ac.cn(ro,insecure) us.gcc.ac.cn(ro,insecure)
 /srv/distributed_ffmpeg_transcoding_shared_files/tmp cn.gcc.ac.cn(rw,insecure) us.gcc.ac.cn(rw,insecure)
 ```
+
 - **注：特别注意要用insecure，否则会挂载不上，显示access denied。这个坑了我好久。**
 - 修改完后用`exportfs -arv`生效。可以使用`showmount -e`查看。
 
@@ -78,6 +81,7 @@ mount hk.gcc.ac.cn:/srv/distributed_ffmpeg_transcoding_shared_files/upload /srv/
 ```
 
 下载`dffmpeg.sh`并加执行权限。脚本使用方法如下：
+
 ```
 Usage：dffmpeg.sh [input_file] [ffmpeg_output_parameter]
 Usage：dffmpeg.sh test.mp4
@@ -104,3 +108,7 @@ Usage：dffmpeg.sh test.mp4 -c mpeg4 -b:v 1M
 
  - v1.1：修复问题：最后的视频长度会比原来长。原因在于`-ss`参数的位置，详见代码注释。
  - v1.2：新增内容：支持FFmpeg输出参数。输出彩色详细信息。
+
+ ## 我的博客相关文章
+
+ - [分布式FFMPEG转码集群](https://blog.csdn.net/imdyf/article/details/80621009)
