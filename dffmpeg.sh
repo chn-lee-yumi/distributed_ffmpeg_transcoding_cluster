@@ -42,6 +42,7 @@ display(){
 }
 
 ### 开始函数重载
+# 感谢@yurenchen000 传授这种神奇的写法
 # 重载cp，记录log
 CP=`which cp`
 cp(){
